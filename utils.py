@@ -12,8 +12,6 @@ def readmat(filename, var_name):
     img = img.get(var_name)
     img = img.astype(np.float32)
 
-    # unsqueeze for channel size of 1
-    # return np.expand_dims(img, 0)
     return img
 
 
