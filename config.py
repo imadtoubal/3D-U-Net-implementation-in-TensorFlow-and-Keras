@@ -10,7 +10,7 @@ def get_config():
             "verbose": 1,
         },
         "net_cmp": {
-            "optimizer": Adam(learning_rate=3e-4),
+            "optimizer": Adam(),
             "metrics": [dice_coef]
         },
 

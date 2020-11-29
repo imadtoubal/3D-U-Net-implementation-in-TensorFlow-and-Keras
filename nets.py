@@ -54,11 +54,11 @@ def conv_block(inp, channels, output_name, block_name='Block', dropout=0.2, dept
             cse = GlobalAveragePooling3D()(c_2)
             cse = Dense(c_2.shape[-1] // 2, activation='relu')(cse)
             cse = Dense(c_2.shape[-1], activation='sigmoid')(cse)
-            c_2_cse = c_2 * cse
+            c_2_cse = Multiply()([c_2, cse])
 
             # sSE
             sse = Conv3D(1, (1, 1, 1), activation='sigmoid', kernel_initializer='glorot_uniform')(c_2)
-            c_2_sse = c_2 * sse
+            c_2_sse = Multiply()([c_2, sse])
             return Add(name=output_name)([c_2_cse, c_2_sse])
         elif cSE:
             sse = Conv3D(1, (1, 1, 1), activation='sigmoid', kernel_initializer='glorot_uniform')(c_2)
@@ -77,15 +77,15 @@ def att_block(x, g, channels, block_name='AttentionBlock'):
     with K.name_scope(block_name):
         x1 = Conv3D(channels, (1, 1, 1), kernel_initializer='glorot_uniform', padding='same')(x)
         g1 = Conv3D(channels, (1, 1, 1), kernel_initializer='glorot_uniform', padding='same')(g)
-        psi = tf.keras.layers.Activation('relu')(x1+g1)
+        psi = tf.keras.layers.Activation('relu')(Add()([x1, g1]))
         psi = Conv3D(channels, (1, 1, 1), activation='sigmoid', kernel_initializer='glorot_uniform', padding='same')(psi)
         out = x * psi
     return out
 
 # sklnfdnfjksdjkaaaaa
         
-def attunet(w, h, d, c, r=1):
-    inputs = Input((w, h, d, c))
+def attunet(w, h, d, cin, cout, r=1):
+    inputs = Input((w, h, d, cin))
 
     inp = inputs
 
@@ -139,9 +139,9 @@ def attunet(w, h, d, c, r=1):
         u9 = att_block(u9, c1, 16)
         c9 = conv_block(u9, [16, 16], 'c9')
 
-        outputs = tf.keras.layers.Conv3D(6, (1, 1, 1), activation='softmax')(c9)
+        outputs = tf.keras.layers.Conv3D(cout, (1, 1, 1), activation='softmax')(c9)
 
-        nextinp = tf.keras.layers.Conv3D(6, (3, 3, 3), trainable=False, padding='same')(outputs)
+        nextinp = tf.keras.layers.Conv3D(cout, (3, 3, 3), trainable=False, padding='same')(outputs)
         inp = tf.keras.layers.concatenate([nextinp, inputs])
 
 
@@ -150,8 +150,8 @@ def attunet(w, h, d, c, r=1):
 
     return model
 
-def unet(w, h, d, c, r=1, scSE=False, sSE=False, cSE=False, loss='categorical_crossentropy', bn=False):
-    inputs = Input((w, h, d, c))
+def unet(w, h, d, cin, cout, r=1, scSE=False, sSE=False, cSE=False, loss='categorical_crossentropy', bn=False):
+    inputs = Input((w, h, d, cin))
 
     inp = inputs
     outputs = []
@@ -208,9 +208,9 @@ def unet(w, h, d, c, r=1, scSE=False, sSE=False, cSE=False, loss='categorical_cr
         u9 = concatenate([u9, c1])
         c9 = conv_block(u9, [16, 16], 'c9_' + str(i), bn=bn, scSE=scSE, sSE=sSE, cSE=cSE)
 
-        outputs.append(tf.keras.layers.Conv3D(6, (1, 1, 1), activation='softmax', name='out_{}'.format(i))(c9))
+        outputs.append(tf.keras.layers.Conv3D(cout, (1, 1, 1), activation='softmax', name='out_{}'.format(i))(c9))
 
-        nextinp = tf.keras.layers.Conv3D(6, (3, 3, 3), trainable=False, padding='same')(outputs[i])
+        nextinp = tf.keras.layers.Conv3D(cout, (3, 3, 3), trainable=False, padding='same')(outputs[i])
         inp = tf.keras.layers.concatenate([nextinp, inputs])
 
     losses = {'out_{}'.format(o):loss for o in range(r)}
@@ -221,8 +221,8 @@ def unet(w, h, d, c, r=1, scSE=False, sSE=False, cSE=False, loss='categorical_cr
 
     return model
 
-def unet_mini(w, h, d, c, r=1, bn=False, scSE=False, sSE=False, cSE=False, loss='categorical_crossentropy'):
-    inputs = Input((w, h, d, c))
+def unet_mini(w, h, d, cin, cout, r=1, bn=False, scSE=False, sSE=False, cSE=False, loss='categorical_crossentropy'):
+    inputs = Input((w, h, d, cin))
 
     inp = inputs
     outputs = []
@@ -265,9 +265,9 @@ def unet_mini(w, h, d, c, r=1, bn=False, scSE=False, sSE=False, cSE=False, loss=
         u9 = concatenate([u9, c1])
         c9 = conv_block(u9, [16, 16], 'c9_' + str(i), bn=bn, scSE=scSE, sSE=sSE, cSE=cSE)
 
-        outputs.append(tf.keras.layers.Conv3D(6, (1, 1, 1), activation='softmax', name='out_{}'.format(i))(c9))
+        outputs.append(tf.keras.layers.Conv3D(cout, (1, 1, 1), activation='softmax', name='out_{}'.format(i))(c9))
 
-        nextinp = tf.keras.layers.Conv3D(6, (3, 3, 3), trainable=False, padding='same')(outputs[i])
+        nextinp = tf.keras.layers.Conv3D(cout, (3, 3, 3), trainable=False, padding='same')(outputs[i])
         inp = tf.keras.layers.concatenate([nextinp, inputs])
 
     losses = {'out_{}'.format(o):loss for o in range(r)}
@@ -279,8 +279,8 @@ def unet_mini(w, h, d, c, r=1, bn=False, scSE=False, sSE=False, cSE=False, loss=
     return model
 
 
-def unet_bi(w, h, d, c, r=1, scSE=False, sSE=False, cSE=False, loss='categorical_crossentropy'):
-    inputs = Input((w, h, d, c))
+def unet_bi(w, h, d, cin, cout, r=1, scSE=False, sSE=False, cSE=False, loss='categorical_crossentropy'):
+    inputs = Input((w, h, d, cin))
 
     inp = inputs
     outputs = []
@@ -338,9 +338,9 @@ def unet_bi(w, h, d, c, r=1, scSE=False, sSE=False, cSE=False, loss='categorical
         u9 = concatenate([u9, c1])
         c9 = conv_block(u9, [16, 16], 'c9_' + str(i), scSE=scSE, sSE=sSE, cSE=cSE)
 
-        outputs.append(Conv3D(6, (1, 1, 1), activation='softmax', name='out_{}'.format(i))(c9))
+        outputs.append(Conv3D(cout, (1, 1, 1), activation='softmax', name='out_{}'.format(i))(c9))
 
-        nextinp = tf.keras.layers.Conv3D(6, (3, 3, 3), trainable=False, padding='same')(outputs[i])
+        nextinp = tf.keras.layers.Conv3D(cout, (3, 3, 3), trainable=False, padding='same')(outputs[i])
         inp = tf.keras.layers.concatenate([nextinp, inputs])
 
     losses = {'out_{}'.format(o):loss for o in range(r)}
@@ -351,8 +351,8 @@ def unet_bi(w, h, d, c, r=1, scSE=False, sSE=False, cSE=False, loss='categorical
 
     return model
 
-def unet_2d(w, h, d, c, r=1, scSE=False, sSE=False, cSE=False, loss='categorical_crossentropy'):
-    inputs = Input((w, h, d, c))
+def unet_2d(w, h, d, cin, cout, r=1, scSE=False, sSE=False, cSE=False, loss='categorical_crossentropy'):
+    inputs = Input((w, h, d, cin))
 
     inp = inputs
     outputs = []
@@ -410,9 +410,9 @@ def unet_2d(w, h, d, c, r=1, scSE=False, sSE=False, cSE=False, loss='categorical
         u9 = concatenate([u9, c1])
         c9 = conv_block(u9, [16, 16], 'c9_' + str(i), scSE=scSE, sSE=sSE, cSE=cSE, kernel_size=(3, 3, 1))
 
-        outputs.append(Conv3D(6, (1, 1, 1), activation='softmax', name='out_{}'.format(i))(c9))
+        outputs.append(Conv3D(cout, (1, 1, 1), activation='softmax', name='out_{}'.format(i))(c9))
 
-        nextinp = tf.keras.layers.Conv3D(6, (3, 3, 3), trainable=False, padding='same')(outputs[i])
+        nextinp = tf.keras.layers.Conv3D(cout, (3, 3, 3), trainable=False, padding='same')(outputs[i])
         inp = tf.keras.layers.concatenate([nextinp, inputs])
 
     losses = {'out_{}'.format(o):loss for o in range(r)}
@@ -423,17 +423,17 @@ def unet_2d(w, h, d, c, r=1, scSE=False, sSE=False, cSE=False, loss='categorical
 
     return model
 
-def scSEunet(w, h, d, c, r=1, loss='categorical_crossentropy'):
-    return unet(w, h, d, c, r=r, scSE=True)
+def scSEunet(w, h, d, cin, cout, r=1, loss='categorical_crossentropy'):
+    return unet(w, h, d, cin, cout, r=r, scSE=True)
 
-def cSEunet(w, h, d, c, r=1):
-    return unet(w, h, d, c, r=r, cSE=True)
+def cSEunet(w, h, d, cin, cout, r=1):
+    return unet(w, h, d, cin, cout, r=r, cSE=True)
 
-def sSEunet(w, h, d, c, r=1):
-    return unet(w, h, d, c, r=r, sSE=True)
+def sSEunet(w, h, d, cin, cout, r=1):
+    return unet(w, h, d, cin, cout, r=r, sSE=True)
 
-def unetpp(w, h, d, c, loss='categorical_crossentropy', scSE=False):
-    inputs = Input((w, h, d, c))
+def unetpp(w, h, d, cin, cout, loss='categorical_crossentropy', scSE=False):
+    inputs = Input((w, h, d, cin))
 
     # inp = inputs
 
@@ -453,7 +453,7 @@ def unetpp(w, h, d, c, loss='categorical_crossentropy', scSE=False):
     with tf.name_scope('X_01'):
         c12 = UpSampling3D(size=2)(c21)
         c12 = concatenate([c12, c11])
-        c12 = conv_block(c12, [12, 6], 'out_0', activation='softmax') #c1, scSE=scSE2
+        c12 = conv_block(c12, [12, cout], 'out_0', activation='softmax') #c1, scSE=scSE2
     
     # C12
     with tf.name_scope('X_20'):
@@ -470,7 +470,7 @@ def unetpp(w, h, d, c, loss='categorical_crossentropy', scSE=False):
     with tf.name_scope('X_02'):
         c13 = UpSampling3D(size=2)(c22)
         c13 = concatenate([c13, c12, c11])
-        c13 = conv_block(c13, [12, 6], 'out_1', activation='softmax', scSE=scSE)
+        c13 = conv_block(c13, [12, cout], 'out_1', activation='softmax', scSE=scSE)
     
     # C13
     with tf.name_scope('X_30'):
@@ -493,7 +493,7 @@ def unetpp(w, h, d, c, loss='categorical_crossentropy', scSE=False):
     with tf.name_scope('X_03'):
         c14 = UpSampling3D(size=2)(c23)
         c14 = concatenate([c14, c13, c12, c11])
-        c14 = conv_block(c14, [12, 6], 'out_2', activation='softmax', scSE=scSE)
+        c14 = conv_block(c14, [12, cout], 'out_2', activation='softmax', scSE=scSE)
     
     # C23
     with tf.name_scope('X_40'):
@@ -522,7 +522,7 @@ def unetpp(w, h, d, c, loss='categorical_crossentropy', scSE=False):
         u9 = UpSampling3D(size=2)(c8)
         u9 = concatenate([u9, c11, c12, c13, c14])
         # print(u9.shape)
-        outputs = conv_block(u9, [12, 6], 'out_3', activation='softmax', scSE=scSE)
+        outputs = conv_block(u9, [12, cout], 'out_3', activation='softmax', scSE=scSE)
 
     
     model = tf.keras.Model(inputs=[inputs], outputs=[c12, c13, c14, outputs])
@@ -532,8 +532,8 @@ def unetpp(w, h, d, c, loss='categorical_crossentropy', scSE=False):
 
     return model
 
-def unetpp_2d(w, h, d, c, loss='categorical_crossentropy', scSE=False):
-    inputs = Input((w, h, d, c))
+def unetpp_2d(w, h, d, cin, cout, loss='categorical_crossentropy', scSE=False):
+    inputs = Input((w, h, d, cin))
 
     # inp = inputs
 
@@ -553,7 +553,7 @@ def unetpp_2d(w, h, d, c, loss='categorical_crossentropy', scSE=False):
     with tf.name_scope('X_01'):
         c12 = UpSampling3D(size=2)(c21)
         c12 = concatenate([c12, c11])
-        c12 = conv_block(c12, [12, 6], 'out_0', activation='softmax') #c1, scSE=scSE, kernel_size=(3, 3, 1)2
+        c12 = conv_block(c12, [12, cout], 'out_0', activation='softmax') #c1, scSE=scSE, kernel_size=(3, 3, 1)2
     
     # C12
     with tf.name_scope('X_20'):
@@ -570,7 +570,7 @@ def unetpp_2d(w, h, d, c, loss='categorical_crossentropy', scSE=False):
     with tf.name_scope('X_02'):
         c13 = UpSampling3D(size=2)(c22)
         c13 = concatenate([c13, c12, c11])
-        c13 = conv_block(c13, [12, 6], 'out_1', activation='softmax', scSE=scSE, kernel_size=(3, 3, 1))
+        c13 = conv_block(c13, [12, cout], 'out_1', activation='softmax', scSE=scSE, kernel_size=(3, 3, 1))
     
     # C13
     with tf.name_scope('X_30'):
@@ -593,7 +593,7 @@ def unetpp_2d(w, h, d, c, loss='categorical_crossentropy', scSE=False):
     with tf.name_scope('X_03'):
         c14 = UpSampling3D(size=2)(c23)
         c14 = concatenate([c14, c13, c12, c11])
-        c14 = conv_block(c14, [12, 6], 'out_2', activation='softmax', scSE=scSE, kernel_size=(3, 3, 1))
+        c14 = conv_block(c14, [12, cout], 'out_2', activation='softmax', scSE=scSE, kernel_size=(3, 3, 1))
     
     # C23
     with tf.name_scope('X_40'):
@@ -622,7 +622,7 @@ def unetpp_2d(w, h, d, c, loss='categorical_crossentropy', scSE=False):
         u9 = UpSampling3D(size=2)(c8)
         u9 = concatenate([u9, c11, c12, c13, c14])
         # print(u9.shape)
-        outputs = conv_block(u9, [12, 6], 'out_3', activation='softmax', scSE=scSE, kernel_size=(3, 3, 1))
+        outputs = conv_block(u9, [12, cout], 'out_3', activation='softmax', scSE=scSE, kernel_size=(3, 3, 1))
 
     
     model = tf.keras.Model(inputs=[inputs], outputs=[c12, c13, c14, outputs])
@@ -633,7 +633,7 @@ def unetpp_2d(w, h, d, c, loss='categorical_crossentropy', scSE=False):
     return model
 
 
-def scSEunetpp(w, h, d, c, loss='categorical_crossentropy'):
-    return unetpp(w, h, d, c, scSE=True, loss=loss)
+def scSEunetpp(w, h, d, cin, cout, loss='categorical_crossentropy'):
+    return unetpp(w, h, d, cin, cout, scSE=True, loss=loss)
 if __name__ == '__main__':
     pass

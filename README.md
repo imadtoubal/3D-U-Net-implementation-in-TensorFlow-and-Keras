@@ -44,11 +44,11 @@ You need to have Python installed in your computer.
 
 In order to choose the models to train, set up the dictionary of `{key: value}` pairs where the `key` is the name you want to give the model and `value` is the model function from the table below:
 
-| Model            | Function     | Description                                                                                                                                                                   |
+| Architecture     | Function     | Description                                                                                                                                                                   |
 | ---------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| U-Net            | `unet`       | 3D U-Net architecture with kernel sizes of 3x3x3                                                                                                                              |
+| U-Net            | `unet`       | 3D U-Net architecture with kernel sizes of 3x3x3 [[U-Net paper](https://arxiv.org/abs/1505.04597)]                                                                                                                             |
 | U-Net 2D         | `unet2d`     | 3D U-Net architecture with kernel sizes of 3x3x1                                                                                                                              |
-| U-Net++          | `unetpp`     | 3D U-Net++ architecture with kernel sizes of 3x3x3                                                                                                                            |
+| U-Net++          | `unetpp`     | 3D U-Net++ architecture with kernel sizes of 3x3x3 [[U-Net++ paper](https://arxiv.org/abs/1807.10165)]                                                                                                                            |
 | U-Net w/ scSE    | `scSEunet`   | 3D U-Net architecture with kernel sizes of 3x3x3, and <br>Spatial and Channel-wise Squeeze and Excitation (scSE)<br>[[View paper for scSE](https://arxiv.org/abs/1709.01507)] |
 | U-Net 2D w/ scSE | `scSEunet2d` | 3D U-Net architecture with kernel sizes of 3x3x1, and <br>Spatial and Channel-wise Squeeze and Excitation (scSE)                                                              |
 | U-Net++ w/ scSE  | `scSEunetpp` | 3D U-Net++ architecture with kernel sizes of 3x3x3, and <br>Spatial and Channel-wise Squeeze and Excitation (scSE)                                                            |
